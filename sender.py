@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 from datetime import datetime
 
@@ -22,6 +23,10 @@ async def send_message(host, port, log_path):
     received_data = await reader.readline()
     text = f'{received_data.decode()!r}'
     logger.debug(text)
+    user = json.loads(received_data.decode().strip())
+    if not user:
+        logger.error('Неизвестный токен. Проверьте его или зарегистрируйте заново.')
+        return
 
     received_data = await reader.readline()
     text = f'{received_data.decode()!r}'
