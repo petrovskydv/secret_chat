@@ -16,7 +16,11 @@ async def listen_chat(host, port, log_path):
 
 
 if __name__ == '__main__':
-    parser = configargparse.ArgParser(default_config_files=['settings.ini'], ignore_unknown_config_file_keys=True)
+    parser = configargparse.ArgParser(
+        default_config_files=['settings.ini'],
+        ignore_unknown_config_file_keys=True,
+        help='Listener for dvmn chat',
+    )
     parser.add_argument('-c', '--my-config', is_config_file=True, help='config file path')
     parser.add_argument('--host', required=True, help='chat server url')
     parser.add_argument('--port', required=True, help='chat server port')
