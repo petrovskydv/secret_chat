@@ -3,6 +3,7 @@ import json
 import logging
 from datetime import datetime
 
+import aiofiles
 import configargparse
 
 logger = logging.getLogger('sender')
@@ -40,6 +41,35 @@ async def send_message(host, port, log_path):
     await writer.wait_closed()
 
 
+async def register(host, port, log_path, username):
+    reader, writer = await asyncio.open_connection(host, port)
+
+    received_data = await reader.readline()
+    text = f'{received_data.decode()!r}'
+    logger.debug(text)
+
+    writer.write('\n'.encode())
+    # logger.debug(token)
+    await writer.drain()
+
+    received_data = await reader.readline()
+    text = f'{received_data.decode()!r}'
+    logger.debug(text)
+
+    writer.write(f'{username}\n'.encode())
+    logger.debug(username)
+    await writer.drain()
+
+    received_data = await reader.readline()
+    text = f'{received_data.decode()!r}'
+    logger.debug(text)
+
+    user = json.loads(received_data.decode().strip())
+    auth_path = 'auth.ini'
+    async with aiofiles.open(auth_path, mode='w') as f:
+        await f.write(json.dumps(user))
+
+
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(name)s:%(message)s')
 
@@ -50,4 +80,5 @@ if __name__ == '__main__':
     parser.add_argument('--log_path', required=True, help='path to chat logs')
     args = parser.parse_args()
 
-    asyncio.run(send_message(args.host, args.sender_port, args.log_path))
+    # asyncio.run(send_message(args.host, args.sender_port, args.log_path))
+    asyncio.run(register(args.host, args.sender_port, args.log_path, 'qwertyu'))
