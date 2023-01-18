@@ -1,21 +1,44 @@
 import asyncio
 import json
 import logging
-from datetime import datetime
 
-import aiofiles
 import configargparse
 
+from storage import save_token, read_token
+
 logger = logging.getLogger('sender')
+auth_path = 'auth.ini'
 
 
-async def send_message(host, port, log_path):
-    token = '221522e6-9716-11ed-8c47-0242ac110002'
-    reader, writer = await asyncio.open_connection(host, port)
+class UnknownToken(Exception):
+    def __str__(self):
+        return 'Unknown token. Check it out or register it again.'
 
-    received_data = await reader.readline()
-    text = f'{received_data.decode()!r}'
-    logger.debug(text)
+
+async def send_message(host, port, message, username=None):
+    if username:
+        token = await register(host, port, username)
+    else:
+        try:
+            token = await read_token(auth_path)
+        except FileNotFoundError:
+            raise UnknownToken()
+
+    writer = await authorise(host, port, token)
+
+    await submit_message(f'{message}\n\n', writer)
+
+
+async def submit_message(message, writer):
+    logger.debug(f'Send: {message!r}')
+    writer.write(message.encode())
+    await writer.drain()
+    writer.close()
+    await writer.wait_closed()
+
+
+async def authorise(host, port, token):
+    reader, writer = await get_reader_writer(host, port)
 
     writer.write(f'{token}\n'.encode())
     logger.debug(token)
@@ -27,29 +50,19 @@ async def send_message(host, port, log_path):
     user = json.loads(received_data.decode().strip())
     if not user:
         logger.error('Неизвестный токен. Проверьте его или зарегистрируйте заново.')
-        return
+        raise UnknownToken()
 
     received_data = await reader.readline()
     text = f'{received_data.decode()!r}'
     logger.debug(text)
-
-    message = 'test message\n\n'
-    logger.debug(f'Send: {message!r}')
-    writer.write(message.encode())
-    await writer.drain()
-    writer.close()
-    await writer.wait_closed()
+    return writer
 
 
-async def register(host, port, log_path, username):
-    reader, writer = await asyncio.open_connection(host, port)
-
-    received_data = await reader.readline()
-    text = f'{received_data.decode()!r}'
-    logger.debug(text)
+async def register(host, port, username):
+    reader, writer = await get_reader_writer(host, port)
 
     writer.write('\n'.encode())
-    # logger.debug(token)
+    logger.debug('send empty token')
     await writer.drain()
 
     received_data = await reader.readline()
@@ -65,9 +78,21 @@ async def register(host, port, log_path, username):
     logger.debug(text)
 
     user = json.loads(received_data.decode().strip())
-    auth_path = 'auth.ini'
-    async with aiofiles.open(auth_path, mode='w') as f:
-        await f.write(json.dumps(user))
+    token = user['account_hash']
+    await save_token(auth_path, token)
+
+    writer.close()
+    await writer.wait_closed()
+
+    return token
+
+
+async def get_reader_writer(host, port):
+    reader, writer = await asyncio.open_connection(host, port)
+    received_data = await reader.readline()
+    text = f'{received_data.decode()!r}'
+    logger.debug(text)
+    return reader, writer
 
 
 if __name__ == '__main__':
@@ -78,7 +103,8 @@ if __name__ == '__main__':
     parser.add_argument('--host', required=True, help='chat server url')
     parser.add_argument('--sender_port', required=True, help='chat server port')
     parser.add_argument('--log_path', required=True, help='path to chat logs')
+    parser.add_argument('-username', help='username for register in chat')
+    parser.add_argument('message', help='message to chat')
     args = parser.parse_args()
 
-    # asyncio.run(send_message(args.host, args.sender_port, args.log_path))
-    asyncio.run(register(args.host, args.sender_port, args.log_path, 'qwertyu'))
+    asyncio.run(send_message(args.host, args.sender_port, args.message, args.username))
