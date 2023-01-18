@@ -4,8 +4,8 @@ import logging
 
 import configargparse
 
-from storage import save_token_to_file, read_token_from_file
-from tools import send_message, read_message, get_connection, UnknownToken, raise_for_invalid_token
+from utils.storage import save_token_to_file, read_token_from_file
+from utils.tools import send_message, read_message, get_connection, UnknownToken, raise_for_invalid_token
 
 logger = logging.getLogger('sender')
 AUTH_PATH = 'auth.ini'

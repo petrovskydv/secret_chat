@@ -25,9 +25,8 @@ async def read_message(reader):
 
 async def get_connection(host, port):
     reader, writer = await asyncio.open_connection(host, port)
-    received_data = await reader.readline()
-    text = f'{received_data.decode()!r}'
-    logger.debug(text)
+    # при подключении всегда проспускаем первое сообщение
+    await read_message(reader)
     return reader, writer
 
 
