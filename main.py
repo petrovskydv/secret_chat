@@ -9,6 +9,7 @@ async def listen_chat(host, port, log_path):
     reader, writer = await asyncio.open_connection(host, port)
 
     while received_data := await reader.readline():
+        # TODO добавить защиту от потери сетевого подключения
         text = f'[{datetime.now().strftime("%d.%m.%y %H:%M")}]: {received_data.decode()}'
         print(text)
         async with aiofiles.open(log_path, mode='a') as f:
@@ -19,7 +20,7 @@ if __name__ == '__main__':
     parser = configargparse.ArgParser(
         default_config_files=['settings.ini'],
         ignore_unknown_config_file_keys=True,
-        help='Listener for dvmn chat',
+        description='Listener for dvmn chat',
     )
     parser.add_argument('-c', '--my-config', is_config_file=True, help='config file path')
     parser.add_argument('--host', required=True, help='chat server url')
