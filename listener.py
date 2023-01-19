@@ -7,11 +7,10 @@ import configargparse
 
 async def listen_chat(host, port, log_path):
     reader, writer = await asyncio.open_connection(host, port)
-
-    while message := await reader.readline():
-        text = f'[{datetime.now().strftime("%d.%m.%y %H:%M")}]: {message.decode()}'
-        print(text)
-        async with aiofiles.open(log_path, mode='a') as f:
+    async with aiofiles.open(log_path, mode='a') as f:
+        while message := await reader.readline():
+            text = f'[{datetime.now().strftime("%d.%m.%y %H:%M")}]: {message.decode()}'
+            print(text)
             await f.write(text)
 
     writer.close()
