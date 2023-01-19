@@ -40,7 +40,9 @@ async def authorise(reader, writer, token):
     await send_message(writer, text)
 
     message = await read_message(reader)
-    await raise_for_invalid_token(message)
+    if message == f'null{LINE_FEED}':
+        logger.error('Неизвестный токен. Проверьте его или зарегистрируйте заново.')
+        raise UnknownToken()
 
     await read_message(reader)
 

@@ -35,10 +35,3 @@ async def get_connection(host, port):
         logger.debug('close connection')
         writer.close()
         await writer.wait_closed()
-
-
-async def raise_for_invalid_token(message):
-    user = json.loads(message)
-    if not user:
-        logger.error('Неизвестный токен. Проверьте его или зарегистрируйте заново.')
-        raise UnknownToken()
