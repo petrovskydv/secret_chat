@@ -12,7 +12,7 @@ AUTH_PATH = 'auth.ini'
 LINE_FEED = '\n'
 
 
-async def submit_message(host, port, message, username=None):
+async def send_message_from_cli(host, port, message, username=None):
     if username:
         token = await register(host, port, username)
     else:
@@ -24,11 +24,15 @@ async def submit_message(host, port, message, username=None):
     reader, writer = await get_connection(host, port)
     await authorise(reader, writer, token)
 
-    text = f'{message}{LINE_FEED}{LINE_FEED}'
-    await send_message(writer, text)
+    await submit_message(writer, message)
 
     writer.close()
     await writer.wait_closed()
+
+
+async def submit_message(writer, message):
+    text = f'{message}{LINE_FEED}{LINE_FEED}'
+    await send_message(writer, text)
 
 
 async def authorise(reader, writer, token):
@@ -75,4 +79,4 @@ if __name__ == '__main__':
     parser.add_argument('message', help='message to chat')
     args = parser.parse_args()
 
-    asyncio.run(submit_message(args.host, args.sender_port, args.message, args.username))
+    asyncio.run(send_message_from_cli(args.host, args.sender_port, args.message, args.username))
