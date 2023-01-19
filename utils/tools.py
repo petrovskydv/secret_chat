@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from contextlib import asynccontextmanager
 
 logger = logging.getLogger('sender')
 
@@ -23,11 +24,17 @@ async def read_message(reader):
     return message
 
 
+@asynccontextmanager
 async def get_connection(host, port):
-    reader, writer = await asyncio.open_connection(host, port)
-    # при подключении всегда проспускаем первое сообщение
-    await read_message(reader)
-    return reader, writer
+    try:
+        logger.debug(f'open connection to {host}:{port}')
+        connection = await asyncio.open_connection(host, port)
+        reader, writer = connection
+        yield connection
+    finally:
+        logger.debug('close connection')
+        writer.close()
+        await writer.wait_closed()
 
 
 async def raise_for_invalid_token(message):

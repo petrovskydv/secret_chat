@@ -21,13 +21,13 @@ async def send_message_from_cli(host, port, message, username=None):
         except FileNotFoundError:
             raise UnknownToken()
 
-    reader, writer = await get_connection(host, port)
-    await authorise(reader, writer, token)
+    async with get_connection(host, port) as connection:
+        reader, writer = connection
 
-    await submit_message(writer, message)
+        await read_message(reader)
 
-    writer.close()
-    await writer.wait_closed()
+        await authorise(reader, writer, token)
+        await submit_message(writer, message)
 
 
 async def submit_message(writer, message):
@@ -46,24 +46,24 @@ async def authorise(reader, writer, token):
 
 
 async def register(host, port, username):
-    reader, writer = await get_connection(host, port)
+    async with get_connection(host, port) as connection:
+        reader, writer = connection
 
-    text = f'{LINE_FEED}'
-    await send_message(writer, text)
+        await read_message(reader)
 
-    await read_message(reader)
+        text = f'{LINE_FEED}'
+        await send_message(writer, text)
 
-    text = f'{username}{LINE_FEED}'
-    await send_message(writer, text)
+        await read_message(reader)
 
-    message = await read_message(reader)
+        text = f'{username}{LINE_FEED}'
+        await send_message(writer, text)
+
+        message = await read_message(reader)
 
     user = json.loads(message)
     token = user['account_hash']
     await save_token_to_file(AUTH_PATH, token)
-
-    writer.close()
-    await writer.wait_closed()
 
     return token
 
