@@ -6,6 +6,7 @@ import time
 import tkinter as tk
 from datetime import datetime
 from enum import Enum
+from tkinter import messagebox
 from tkinter.scrolledtext import ScrolledText
 
 import aiofiles
@@ -145,8 +146,9 @@ async def draw(messages_queue, sending_queue, status_updates_queue):
     )
 
 
-async def read_msgs(host, port, messages_queue, saving_queue):
+async def read_msgs(host, port, messages_queue, saving_queue, status_updates_queue):
     async with get_connection(host, port) as connection:
+        status_updates_queue.put_nowait(ReadConnectionStateChanged.ESTABLISHED)
         reader, writer = connection
         while message := await reader.readline():
             logging.debug(f'receive new message: {message.strip().decode()}')
@@ -170,12 +172,19 @@ async def read_history(filepath, queue):
     logging.debug('read msgs from history finish')
 
 
-async def send_msgs(host, port, token, queue):
+async def send_msgs(host, port, token, queue, status_updates_queue):
     async with get_connection(host, port) as connection:
+        status_updates_queue.put_nowait(SendingConnectionStateChanged.ESTABLISHED)
+
         reader, writer = connection
         await read_message(reader)
 
-        await authorise(reader, writer, token)
+        try:
+            nickname = await authorise(reader, writer, token)
+            status_updates_queue.put_nowait(NicknameReceived(nickname))
+        except UnknownToken:
+            messagebox.showinfo("Неверный токен", 'Проверьте токен. сервер его не узнал.')
+            raise TkAppClosed()
 
         while True:
             message = await queue.get()
@@ -207,12 +216,14 @@ async def main():
     except FileNotFoundError:
         raise UnknownToken()
 
+    await read_history(args.log_path, messages_queue)
+
     await asyncio.gather(
+        send_msgs(args.host, args.sender_port, token, sending_queue, status_updates_queue),
         draw(messages_queue, sending_queue, status_updates_queue),
-        read_history(args.log_path, messages_queue),
-        read_msgs(args.host, args.port, messages_queue, saving_queue),
+        read_msgs(args.host, args.port, messages_queue, saving_queue, status_updates_queue),
         save_messages(args.log_path, saving_queue),
-        send_msgs(args.host, args.sender_port, token, sending_queue),
+
 
     )
 

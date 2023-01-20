@@ -45,9 +45,12 @@ async def authorise(reader, writer, token):
         raise UnknownToken()
 
     user = json.loads(message)
-    logger.debug(f'Выполнена авторизация. Пользователь {user["nickname"]}')
+    nickname = user['nickname']
+    logger.debug(f'Выполнена авторизация. Пользователь {nickname}')
 
     await read_message(reader)
+
+    return nickname
 
 
 async def register(host, port, username):
