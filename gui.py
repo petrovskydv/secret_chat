@@ -1,47 +1,21 @@
 import asyncio
-import contextlib
-import json
 import logging
-import time
 import tkinter as tk
-from datetime import datetime
-from enum import Enum
 from tkinter import messagebox
 from tkinter.scrolledtext import ScrolledText
 
-import aiofiles
 import configargparse
 
-from sender import AUTH_PATH, LINE_FEED, authorise, submit_message
+from chat_client import read_msgs, send_msgs, ReadConnectionStateChanged, SendingConnectionStateChanged, \
+    NicknameReceived, watch_for_connection
+from msg_history import save_messages, read_history
 from utils.storage import read_token_from_file
-from utils.tools import get_connection, UnknownToken, read_message, send_message
+
+AUTH_PATH = 'auth.ini'
 
 
 class TkAppClosed(Exception):
     pass
-
-
-class ReadConnectionStateChanged(Enum):
-    INITIATED = 'устанавливаем соединение'
-    ESTABLISHED = 'соединение установлено'
-    CLOSED = 'соединение закрыто'
-
-    def __str__(self):
-        return str(self.value)
-
-
-class SendingConnectionStateChanged(Enum):
-    INITIATED = 'устанавливаем соединение'
-    ESTABLISHED = 'соединение установлено'
-    CLOSED = 'соединение закрыто'
-
-    def __str__(self):
-        return str(self.value)
-
-
-class NicknameReceived:
-    def __init__(self, nickname):
-        self.nickname = nickname
 
 
 def process_new_message(input_field, sending_queue):
@@ -146,53 +120,8 @@ async def draw(messages_queue, sending_queue, status_updates_queue):
     )
 
 
-async def read_msgs(host, port, messages_queue, saving_queue, status_updates_queue):
-    async with get_connection(host, port) as connection:
-        status_updates_queue.put_nowait(ReadConnectionStateChanged.ESTABLISHED)
-        reader, writer = connection
-        while message := await reader.readline():
-            logging.debug(f'receive new message: {message.strip().decode()}')
-            text = f'[{datetime.now().strftime("%d.%m.%y %H:%M")}]: {message.strip().decode()}'
-            messages_queue.put_nowait(text)
-            saving_queue.put_nowait(text)
-
-
-async def save_messages(filepath, queue):
-    async with aiofiles.open(filepath, mode='a') as f:
-        while True:
-            message = await queue.get()
-            await f.write(f'{message}\n')
-
-
-async def read_history(filepath, queue):
-    logging.debug('read msgs from history')
-    async with aiofiles.open(filepath, mode='r') as f:
-        while msg := await f.readline():
-            queue.put_nowait(msg.strip())
-    logging.debug('read msgs from history finish')
-
-
-async def send_msgs(host, port, token, queue, status_updates_queue):
-    async with get_connection(host, port) as connection:
-        status_updates_queue.put_nowait(SendingConnectionStateChanged.ESTABLISHED)
-
-        reader, writer = connection
-        await read_message(reader)
-
-        try:
-            nickname = await authorise(reader, writer, token)
-            status_updates_queue.put_nowait(NicknameReceived(nickname))
-        except UnknownToken:
-            messagebox.showinfo("Неверный токен", 'Проверьте токен. сервер его не узнал.')
-            raise TkAppClosed()
-
-        while True:
-            message = await queue.get()
-            await submit_message(writer, message)
-
-
 async def main():
-    logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+    logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(name)s:%(message)s')
 
     parser = configargparse.ArgParser(
         default_config_files=['settings.ini'],
@@ -210,21 +139,23 @@ async def main():
     sending_queue = asyncio.Queue()
     status_updates_queue = asyncio.Queue()
     saving_queue = asyncio.Queue()
+    watchdog_queue = asyncio.Queue()
 
     try:
         token = await read_token_from_file(AUTH_PATH)
     except FileNotFoundError:
-        raise UnknownToken()
+        # raise UnknownToken()
+        messagebox.showinfo('Пользователь не зарегистрирован.', 'Нужно пройти регистрацию в чате.')
+        return
 
     await read_history(args.log_path, messages_queue)
 
     await asyncio.gather(
-        send_msgs(args.host, args.sender_port, token, sending_queue, status_updates_queue),
+        send_msgs(args.host, args.sender_port, token, sending_queue, status_updates_queue, watchdog_queue),
         draw(messages_queue, sending_queue, status_updates_queue),
-        read_msgs(args.host, args.port, messages_queue, saving_queue, status_updates_queue),
+        read_msgs(args.host, args.port, messages_queue, saving_queue, status_updates_queue, watchdog_queue),
         save_messages(args.log_path, saving_queue),
-
-
+        watch_for_connection(watchdog_queue),
     )
 
 
