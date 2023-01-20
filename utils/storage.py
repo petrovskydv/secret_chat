@@ -12,7 +12,7 @@ async def save_token_to_file(auth_path, token):
 
 
 async def read_token_from_file(auth_path):
-    logger.debug('read token from {auth_path}')
+    logger.debug(f'read token from {auth_path}')
     async with aiofiles.open(auth_path, mode='r') as f:
         token = await f.readline()
     return token
