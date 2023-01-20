@@ -27,9 +27,8 @@ async def read_message(reader):
 async def get_connection(host, port):
     try:
         logger.debug(f'open connection to {host}:{port}')
-        connection = await asyncio.open_connection(host, port)
-        reader, writer = connection
-        yield connection
+        reader, writer = await asyncio.open_connection(host, port)
+        yield reader, writer
     finally:
         logger.debug(f'close connection {host}:{port}')
         writer.close()
