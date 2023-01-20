@@ -21,8 +21,7 @@ async def send_message_from_cli(host, port, message, username=None):
         except FileNotFoundError:
             raise UnknownToken()
 
-    async with get_connection(host, port) as connection:
-        reader, writer = connection
+    async with get_connection(host, port) as (reader, writer):
 
         await read_message(reader)
 
@@ -48,8 +47,7 @@ async def authorise(reader, writer, token):
 
 
 async def register(host, port, username):
-    async with get_connection(host, port) as connection:
-        reader, writer = connection
+    async with get_connection(host, port) as (reader, writer):
 
         await read_message(reader)
 

@@ -9,8 +9,7 @@ from utils.tools import get_connection
 
 
 async def listen_chat(host, port, log_path):
-    async with get_connection(host, port) as connection:
-        reader, writer = connection
+    async with get_connection(host, port) as (reader, writer):
         async with aiofiles.open(log_path, mode='a') as f:
             while message := await reader.readline():
                 text = f'[{datetime.now().strftime("%d.%m.%y %H:%M")}]: {message.decode()}'
