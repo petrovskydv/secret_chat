@@ -44,6 +44,9 @@ async def authorise(reader, writer, token):
         logger.error('Неизвестный токен. Проверьте его или зарегистрируйте заново.')
         raise UnknownToken()
 
+    user = json.loads(message)
+    logger.debug(f'Выполнена авторизация. Пользователь {user["nickname"]}')
+
     await read_message(reader)
 
 

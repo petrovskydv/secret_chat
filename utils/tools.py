@@ -1,5 +1,4 @@
 import asyncio
-import json
 import logging
 from contextlib import asynccontextmanager
 
@@ -32,6 +31,6 @@ async def get_connection(host, port):
         reader, writer = connection
         yield connection
     finally:
-        logger.debug('close connection')
+        logger.debug(f'close connection {host}:{port}')
         writer.close()
         await writer.wait_closed()

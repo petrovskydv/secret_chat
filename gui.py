@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import json
 import logging
 import time
 import tkinter as tk
@@ -10,7 +11,9 @@ from tkinter.scrolledtext import ScrolledText
 import aiofiles
 import configargparse
 
-from utils.tools import get_connection
+from sender import AUTH_PATH, LINE_FEED, authorise, submit_message
+from utils.storage import read_token_from_file
+from utils.tools import get_connection, UnknownToken, read_message, send_message
 
 
 class TkAppClosed(Exception):
@@ -167,6 +170,18 @@ async def read_history(filepath, queue):
     logging.debug('read msgs from history finish')
 
 
+async def send_msgs(host, port, token, queue):
+    async with get_connection(host, port) as connection:
+        reader, writer = connection
+        await read_message(reader)
+
+        await authorise(reader, writer, token)
+
+        while True:
+            message = await queue.get()
+            await submit_message(writer, message)
+
+
 async def main():
     logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 
@@ -178,6 +193,7 @@ async def main():
     parser.add_argument('-c', '--config', is_config_file=True, help='config file path')
     parser.add_argument('--host', required=True, help='chat server url')
     parser.add_argument('--port', required=True, help='chat server port')
+    parser.add_argument('--sender_port', required=True, help='chat server port')
     parser.add_argument('--log_path', required=True, help='path to chat logs')
     args = parser.parse_args()
 
@@ -186,11 +202,18 @@ async def main():
     status_updates_queue = asyncio.Queue()
     saving_queue = asyncio.Queue()
 
+    try:
+        token = await read_token_from_file(AUTH_PATH)
+    except FileNotFoundError:
+        raise UnknownToken()
+
     await asyncio.gather(
         draw(messages_queue, sending_queue, status_updates_queue),
         read_history(args.log_path, messages_queue),
         read_msgs(args.host, args.port, messages_queue, saving_queue),
         save_messages(args.log_path, saving_queue),
+        send_msgs(args.host, args.sender_port, token, sending_queue),
+
     )
 
 
