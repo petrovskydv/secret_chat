@@ -146,8 +146,8 @@ async def read_msgs(host, port, messages_queue, saving_queue):
     async with get_connection(host, port) as connection:
         reader, writer = connection
         while message := await reader.readline():
+            logging.debug(f'receive new message: {message.strip().decode()}')
             text = f'[{datetime.now().strftime("%d.%m.%y %H:%M")}]: {message.strip().decode()}'
-            logging.info(text)
             messages_queue.put_nowait(text)
             saving_queue.put_nowait(text)
 
@@ -156,11 +156,20 @@ async def save_messages(filepath, queue):
     async with aiofiles.open(filepath, mode='a') as f:
         while True:
             message = await queue.get()
-            logging.debug('save message')
             await f.write(f'{message}\n')
 
 
+async def read_history(filepath, queue):
+    logging.debug('read msgs from history')
+    async with aiofiles.open(filepath, mode='r') as f:
+        while msg := await f.readline():
+            queue.put_nowait(msg.strip())
+    logging.debug('read msgs from history finish')
+
+
 async def main():
+    logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+
     parser = configargparse.ArgParser(
         default_config_files=['settings.ini'],
         ignore_unknown_config_file_keys=True,
@@ -179,6 +188,7 @@ async def main():
 
     await asyncio.gather(
         draw(messages_queue, sending_queue, status_updates_queue),
+        read_history(args.log_path, messages_queue),
         read_msgs(args.host, args.port, messages_queue, saving_queue),
         save_messages(args.log_path, saving_queue),
     )
