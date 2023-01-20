@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 import tkinter as tk
@@ -43,6 +44,8 @@ async def send_msgs(host, port, token, queue, status_updates_queue, watchdog_que
             await submit_message(writer, message)
             await add_watchdog_record(watchdog_queue, 'Message sent')
 
+    status_updates_queue.put_nowait(SendingConnectionStateChanged.CLOSED)
+
 
 async def add_watchdog_record(watchdog_queue, text):
     watchdog_text = f'[{int(time.time())}] Connection is alive. {text}'
@@ -53,6 +56,16 @@ async def watch_for_connection(watchdog_queue):
     while True:
         message = await watchdog_queue.get()
         watchdog_logger.debug(message)
+
+
+async def handle_connection(host, port, sender_port, token, messages_queue, sending_queue, saving_queue,
+                            status_updates_queue):
+    watchdog_queue = asyncio.Queue()
+    await asyncio.gather(
+        send_msgs(host, sender_port, token, sending_queue, status_updates_queue, watchdog_queue),
+        read_msgs(host, port, messages_queue, saving_queue, status_updates_queue, watchdog_queue),
+        watch_for_connection(watchdog_queue),
+    )
 
 
 class ReadConnectionStateChanged(Enum):

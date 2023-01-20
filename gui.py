@@ -6,8 +6,7 @@ from tkinter.scrolledtext import ScrolledText
 
 import configargparse
 
-from chat_client import read_msgs, send_msgs, ReadConnectionStateChanged, SendingConnectionStateChanged, \
-    NicknameReceived, watch_for_connection
+import chat_client
 from msg_history import save_messages, read_history
 from utils.storage import read_token_from_file
 
@@ -58,13 +57,13 @@ async def update_status_panel(status_labels, status_updates_queue):
 
     while True:
         msg = await status_updates_queue.get()
-        if isinstance(msg, ReadConnectionStateChanged):
+        if isinstance(msg, chat_client.ReadConnectionStateChanged):
             read_label['text'] = f'Чтение: {msg}'
 
-        if isinstance(msg, SendingConnectionStateChanged):
+        if isinstance(msg, chat_client.SendingConnectionStateChanged):
             write_label['text'] = f'Отправка: {msg}'
 
-        if isinstance(msg, NicknameReceived):
+        if isinstance(msg, chat_client.NicknameReceived):
             nickname_label['text'] = f'Имя пользователя: {msg.nickname}'
 
 
@@ -139,23 +138,20 @@ async def main():
     sending_queue = asyncio.Queue()
     status_updates_queue = asyncio.Queue()
     saving_queue = asyncio.Queue()
-    watchdog_queue = asyncio.Queue()
 
     try:
         token = await read_token_from_file(AUTH_PATH)
     except FileNotFoundError:
-        # raise UnknownToken()
         messagebox.showinfo('Пользователь не зарегистрирован.', 'Нужно пройти регистрацию в чате.')
         return
 
     await read_history(args.log_path, messages_queue)
 
     await asyncio.gather(
-        send_msgs(args.host, args.sender_port, token, sending_queue, status_updates_queue, watchdog_queue),
         draw(messages_queue, sending_queue, status_updates_queue),
-        read_msgs(args.host, args.port, messages_queue, saving_queue, status_updates_queue, watchdog_queue),
         save_messages(args.log_path, saving_queue),
-        watch_for_connection(watchdog_queue),
+        chat_client.handle_connection(args.host, args.port, args.sender_port, token, messages_queue, sending_queue,
+                                      saving_queue, status_updates_queue)
     )
 
 
