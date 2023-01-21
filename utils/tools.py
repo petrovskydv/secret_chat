@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 logger = logging.getLogger('sender')
 
@@ -30,6 +30,7 @@ async def get_connection(host, port):
         reader, writer = await asyncio.open_connection(host, port)
         yield reader, writer
     finally:
-        logger.debug(f'close connection {host}:{port}')
-        writer.close()
-        await writer.wait_closed()
+        with suppress(UnboundLocalError):
+            logger.debug(f'close connection {host}:{port}')
+            writer.close()
+            await writer.wait_closed()
