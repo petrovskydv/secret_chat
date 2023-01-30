@@ -13,7 +13,7 @@ from sender import authorise, submit_message
 from utils.tools import get_connection, read_message, UnknownToken, reconnect
 
 watchdog_logger = logging.getLogger('watchdog')
-TIMEOUT_IN_SECONDS = 2
+TIMEOUT_IN_SECONDS = 5
 
 
 async def read_msgs(host, port, messages_queue, saving_queue, status_updates_queue, watchdog_queue,
@@ -29,13 +29,13 @@ async def read_msgs(host, port, messages_queue, saving_queue, status_updates_que
                 try:
                     async with timeout(TIMEOUT_IN_SECONDS) as cm:
                         message = await reader.readline()
-                        text = f'[{datetime.now().strftime("%d.%m.%y %H:%M")}]: {message.strip().decode()}'
+                        text = f'[{datetime.now().strftime("%d.%m.%y %H:%M:%S")}]: {message.strip().decode()}'
                         messages_queue.put_nowait(text)
                         saving_queue.put_nowait(text)
                         await add_watchdog_alive(watchdog_queue, 'New message in chat')
                 except asyncio.TimeoutError:
                     if cm.expired:
-                        await add_watchdog_elapsed(watchdog_queue, TIMEOUT_IN_SECONDS)
+                        await add_watchdog_elapsed(watchdog_queue, TIMEOUT_IN_SECONDS, source='read')
     except get_cancelled_exc_class():
         status_updates_queue.put_nowait(ReadConnectionStateChanged.CLOSED)
         raise
@@ -59,10 +59,10 @@ async def send_msgs(host, port, token, queue, status_updates_queue, watchdog_que
                 messagebox.showinfo("Неверный токен", 'Проверьте токен. сервер его не узнал.')
                 raise tk.TclError
 
-            while True:
-                message = await queue.get()
-                await submit_message(writer, message)
-                await add_watchdog_alive(watchdog_queue, 'Message sent')
+            await asyncio.gather(
+                send_msg_from_queue(queue, watchdog_queue, writer),
+                send_watchdog_msg(writer, watchdog_queue)
+            )
 
     except get_cancelled_exc_class():
         status_updates_queue.put_nowait(SendingConnectionStateChanged.CLOSED)
@@ -70,13 +70,36 @@ async def send_msgs(host, port, token, queue, status_updates_queue, watchdog_que
         raise
 
 
+async def send_msg_from_queue(queue, watchdog_queue, writer):
+    while message := await queue.get():
+        try:
+            async with timeout(TIMEOUT_IN_SECONDS) as cm:
+                await submit_message(writer, message)
+                await add_watchdog_alive(watchdog_queue, 'Message sent')
+        except asyncio.TimeoutError:
+            if cm.expired:
+                await add_watchdog_elapsed(watchdog_queue, TIMEOUT_IN_SECONDS, source='send')
+
+
+async def send_watchdog_msg(writer, watchdog_queue):
+    while True:
+        try:
+            async with timeout(TIMEOUT_IN_SECONDS) as cm:
+                await submit_message(writer, '')
+                await add_watchdog_alive(watchdog_queue, 'Watchdog message sent')
+        except asyncio.TimeoutError:
+            if cm.expired:
+                await add_watchdog_elapsed(watchdog_queue, TIMEOUT_IN_SECONDS, source='WD')
+        await asyncio.sleep(1)
+
+
 async def add_watchdog_alive(watchdog_queue, text):
     watchdog_text = f'[{int(time.time())}] Connection is alive. {text}'
     watchdog_queue.put_nowait(watchdog_text)
 
 
-async def add_watchdog_elapsed(watchdog_queue, seconds):
-    watchdog_text = f'[{int(time.time())}] {seconds}s timeout is elapsed'
+async def add_watchdog_elapsed(watchdog_queue, seconds, source):
+    watchdog_text = f'[{int(time.time())}] {seconds}s timeout is elapsed from {source}'
     watchdog_queue.put_nowait(watchdog_text)
 
 
