@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from tkinter import messagebox
 
-from anyio import create_task_group, TASK_STATUS_IGNORED, get_cancelled_exc_class
+from anyio import create_task_group, TASK_STATUS_IGNORED, get_cancelled_exc_class, ExceptionGroup
 from async_timeout import timeout
 
 from sender import authorise, submit_message
@@ -89,14 +89,18 @@ async def watch_for_connection(watchdog_queue, task_status=TASK_STATUS_IGNORED):
             raise ConnectionError
 
 
-@reconnect(exceptions=(ConnectionError,), logger=watchdog_logger)
+@reconnect(exceptions=(ConnectionError, ExceptionGroup, OSError), logger=watchdog_logger)
 async def handle_connection(host, port, sender_port, token, messages_queue, sending_queue, saving_queue,
                             status_updates_queue):
     watchdog_queue = asyncio.Queue()
-    async with create_task_group() as tg:
-        await tg.start(send_msgs, host, sender_port, token, sending_queue, status_updates_queue, watchdog_queue)
-        await tg.start(read_msgs, host, port, messages_queue, saving_queue, status_updates_queue, watchdog_queue)
-        await tg.start(watch_for_connection, watchdog_queue)
+    try:
+        async with create_task_group() as tg:
+            await tg.start(send_msgs, host, sender_port, token, sending_queue, status_updates_queue, watchdog_queue)
+            await tg.start(read_msgs, host, port, messages_queue, saving_queue, status_updates_queue, watchdog_queue)
+            await tg.start(watch_for_connection, watchdog_queue)
+    except ExceptionGroup as e:
+        print('_________________ExceptionGroup')
+        raise ConnectionError
 
 
 class ReadConnectionStateChanged(Enum):
