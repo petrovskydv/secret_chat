@@ -1,9 +1,11 @@
 import logging
 
 import aiofiles
+from anyio import TASK_STATUS_IGNORED
 
 
-async def save_messages(filepath, queue):
+async def save_messages(filepath, queue, task_status=TASK_STATUS_IGNORED):
+    task_status.started()
     async with aiofiles.open(filepath, mode='a') as f:
         while True:
             message = await queue.get()

@@ -41,7 +41,8 @@ async def read_msgs(host, port, messages_queue, saving_queue, status_updates_que
         raise
 
 
-async def send_msgs(host, port, token, queue, status_updates_queue, watchdog_queue, task_status=TASK_STATUS_IGNORED):
+async def send_msgs(host, port, token, sending_queue, status_updates_queue, watchdog_queue,
+                    task_status=TASK_STATUS_IGNORED):
     try:
         task_status.started()
         status_updates_queue.put_nowait(SendingConnectionStateChanged.INITIATED)
@@ -59,10 +60,9 @@ async def send_msgs(host, port, token, queue, status_updates_queue, watchdog_que
                 messagebox.showinfo("Неверный токен", 'Проверьте токен. сервер его не узнал.')
                 raise tk.TclError
 
-            await asyncio.gather(
-                send_msg_from_queue(queue, watchdog_queue, writer),
-                send_watchdog_msg(writer, watchdog_queue)
-            )
+            async with create_task_group() as tg:
+                await tg.start(send_msg_from_queue, writer, sending_queue, watchdog_queue)
+                await tg.start(send_watchdog_msg, writer, watchdog_queue)
 
     except get_cancelled_exc_class():
         status_updates_queue.put_nowait(SendingConnectionStateChanged.CLOSED)
@@ -70,8 +70,9 @@ async def send_msgs(host, port, token, queue, status_updates_queue, watchdog_que
         raise
 
 
-async def send_msg_from_queue(queue, watchdog_queue, writer):
-    while message := await queue.get():
+async def send_msg_from_queue(writer, sending_queue, watchdog_queue, task_status=TASK_STATUS_IGNORED):
+    task_status.started()
+    while message := await sending_queue.get():
         try:
             async with timeout(TIMEOUT_IN_SECONDS) as cm:
                 await submit_message(writer, message)
@@ -81,7 +82,8 @@ async def send_msg_from_queue(queue, watchdog_queue, writer):
                 await add_watchdog_elapsed(watchdog_queue, TIMEOUT_IN_SECONDS, source='send')
 
 
-async def send_watchdog_msg(writer, watchdog_queue):
+async def send_watchdog_msg(writer, watchdog_queue, task_status=TASK_STATUS_IGNORED):
+    task_status.started()
     while True:
         try:
             async with timeout(TIMEOUT_IN_SECONDS) as cm:
@@ -114,7 +116,7 @@ async def watch_for_connection(watchdog_queue, task_status=TASK_STATUS_IGNORED):
 
 @reconnect(exceptions=(ConnectionError, ExceptionGroup, OSError), logger=watchdog_logger)
 async def handle_connection(host, port, sender_port, token, messages_queue, sending_queue, saving_queue,
-                            status_updates_queue):
+                            status_updates_queue, task_status=TASK_STATUS_IGNORED):
     watchdog_queue = asyncio.Queue()
     try:
         async with create_task_group() as tg:

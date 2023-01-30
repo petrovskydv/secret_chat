@@ -5,6 +5,7 @@ from tkinter import messagebox
 from tkinter.scrolledtext import ScrolledText
 
 import configargparse
+from anyio import create_task_group, TASK_STATUS_IGNORED
 
 import chat_client
 from msg_history import save_messages, read_history
@@ -23,7 +24,8 @@ def process_new_message(input_field, sending_queue):
     input_field.delete(0, tk.END)
 
 
-async def update_tk(root_frame, interval=1 / 120):
+async def update_tk(root_frame, interval=1 / 120, task_status=TASK_STATUS_IGNORED):
+    task_status.started()
     while True:
         try:
             root_frame.update()
@@ -33,7 +35,8 @@ async def update_tk(root_frame, interval=1 / 120):
         await asyncio.sleep(interval)
 
 
-async def update_conversation_history(panel, messages_queue):
+async def update_conversation_history(panel, messages_queue, task_status=TASK_STATUS_IGNORED):
+    task_status.started()
     while True:
         msg = await messages_queue.get()
 
@@ -48,7 +51,8 @@ async def update_conversation_history(panel, messages_queue):
         panel['state'] = 'disabled'
 
 
-async def update_status_panel(status_labels, status_updates_queue):
+async def update_status_panel(status_labels, status_updates_queue, task_status=TASK_STATUS_IGNORED):
+    task_status.started()
     nickname_label, read_label, write_label = status_labels
 
     read_label['text'] = f'Чтение: нет соединения'
@@ -86,7 +90,8 @@ def create_status_panel(root_frame):
     return nickname_label, status_read_label, status_write_label
 
 
-async def draw(messages_queue, sending_queue, status_updates_queue):
+async def draw(messages_queue, sending_queue, status_updates_queue, task_status=TASK_STATUS_IGNORED):
+    task_status.started()
     root = tk.Tk()
 
     root.title('Чат Майнкрафтера')
@@ -112,11 +117,10 @@ async def draw(messages_queue, sending_queue, status_updates_queue):
     conversation_panel = ScrolledText(root_frame, wrap='none')
     conversation_panel.pack(side="top", fill="both", expand=True)
 
-    await asyncio.gather(
-        update_tk(root_frame),
-        update_conversation_history(conversation_panel, messages_queue),
-        update_status_panel(status_labels, status_updates_queue)
-    )
+    async with create_task_group() as tg:
+        await tg.start(update_tk, root_frame)
+        await tg.start(update_conversation_history, conversation_panel, messages_queue)
+        await tg.start(update_status_panel, status_labels, status_updates_queue)
 
 
 async def main():
@@ -147,12 +151,11 @@ async def main():
 
     await read_history(args.log_path, messages_queue)
 
-    await asyncio.gather(
-        draw(messages_queue, sending_queue, status_updates_queue),
-        save_messages(args.log_path, saving_queue),
-        chat_client.handle_connection(args.host, args.port, args.sender_port, token, messages_queue, sending_queue,
-                                      saving_queue, status_updates_queue)
-    )
+    async with create_task_group() as tg:
+        await tg.start(draw, messages_queue, sending_queue, status_updates_queue)
+        await tg.start(save_messages, args.log_path, saving_queue)
+        await tg.start(chat_client.handle_connection, args.host, args.port, args.sender_port, token, messages_queue,
+                       sending_queue, saving_queue, status_updates_queue)
 
 
 if __name__ == '__main__':
