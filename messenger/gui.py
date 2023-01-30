@@ -1,17 +1,10 @@
 import asyncio
-import logging
 import tkinter as tk
-from tkinter import messagebox
 from tkinter.scrolledtext import ScrolledText
 
-import configargparse
 from anyio import create_task_group, TASK_STATUS_IGNORED
 
-import chat_client
-from msg_history import save_messages, read_history
-from utils.storage import read_token_from_file
-
-AUTH_PATH = 'auth.ini'
+from messenger import chat_client
 
 
 class TkAppClosed(Exception):
@@ -121,44 +114,3 @@ async def draw(messages_queue, sending_queue, status_updates_queue, task_status=
         await tg.start(update_tk, root_frame)
         await tg.start(update_conversation_history, conversation_panel, messages_queue)
         await tg.start(update_status_panel, status_labels, status_updates_queue)
-
-
-async def main():
-    logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(name)s:%(message)s')
-
-    parser = configargparse.ArgParser(
-        default_config_files=['settings.ini'],
-        ignore_unknown_config_file_keys=True,
-        description='Listener for dvmn chat',
-    )
-    parser.add_argument('-c', '--config', is_config_file=True, help='config file path')
-    parser.add_argument('--host', required=True, help='chat server url')
-    parser.add_argument('--port', required=True, help='chat server port')
-    parser.add_argument('--sender_port', required=True, help='chat server port')
-    parser.add_argument('--log_path', required=True, help='path to chat logs')
-    args = parser.parse_args()
-
-    messages_queue = asyncio.Queue()
-    sending_queue = asyncio.Queue()
-    status_updates_queue = asyncio.Queue()
-    saving_queue = asyncio.Queue()
-
-    try:
-        token = await read_token_from_file(AUTH_PATH)
-    except FileNotFoundError:
-        messagebox.showinfo('Пользователь не зарегистрирован.', 'Нужно пройти регистрацию в чате.')
-        return
-
-    await read_history(args.log_path, messages_queue)
-
-    async with create_task_group() as tg:
-        await tg.start(draw, messages_queue, sending_queue, status_updates_queue)
-        await tg.start(save_messages, args.log_path, saving_queue)
-        await tg.start(chat_client.handle_connection, args.host, args.port, args.sender_port, token, messages_queue,
-                       sending_queue, saving_queue, status_updates_queue)
-
-
-if __name__ == '__main__':
-    # with contextlib.suppress(tk.TclError):
-    #     asyncio.run(main(args.host, args.port))
-    asyncio.run(main())
