@@ -4,6 +4,7 @@ import logging
 import textwrap
 from contextlib import asynccontextmanager, suppress
 
+LINE_FEED = '\n'
 logger = logging.getLogger('sender')
 
 
@@ -14,14 +15,14 @@ class UnknownToken(Exception):
 
 async def send_message(writer, text):
     writer.write(text.encode())
-    logger.debug(f'send: {text}')
+    logger.debug(f'send: {text.rstrip(LINE_FEED)}')
     await writer.drain()
 
 
 async def read_message(reader):
     received_data = await reader.readline()
     message = received_data.decode()
-    logger.debug(f'receive: {message}')
+    logger.debug(f'receive: {message.rstrip(LINE_FEED)}')
     return message
 
 
