@@ -3,8 +3,8 @@ import logging
 
 import configargparse
 
-from messenger.storage import read_token_from_file
-from messenger.tools import UnknownToken, authorise, register, AUTH_PATH
+from messenger.token_storage import read_token_from_file
+from messenger.auth_tools import UnknownToken, authorise, register, AUTH_PATH
 from messenger.connection import get_connection
 from messenger.messages import read_message, submit_message
 

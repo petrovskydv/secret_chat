@@ -7,7 +7,7 @@ import configargparse
 from anyio import create_task_group, TASK_STATUS_IGNORED
 
 from messenger.gui import update_tk
-from messenger.tools import register
+from messenger.auth_tools import register
 
 
 def process_login(event: Event):

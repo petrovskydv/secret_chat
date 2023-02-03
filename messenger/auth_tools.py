@@ -3,7 +3,7 @@ import logging
 
 from messenger.connection import get_connection
 from messenger.messages import send_message, read_message, LINE_FEED
-from messenger.storage import save_token_to_file
+from messenger.token_storage import save_token_to_file
 
 AUTH_PATH = 'settings/auth.ini'
 logger = logging.getLogger('sender')

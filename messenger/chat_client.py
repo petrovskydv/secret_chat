@@ -10,7 +10,7 @@ from async_timeout import timeout
 
 from messenger.connection import get_connection, reconnect
 from messenger.messages import read_message, submit_message
-from messenger.tools import UnknownToken, authorise
+from messenger.auth_tools import UnknownToken, authorise
 
 watchdog_logger = logging.getLogger('watchdog')
 TIMEOUT_IN_SECONDS = 5
