@@ -17,6 +17,29 @@ watchdog_logger = logging.getLogger('watchdog')
 TIMEOUT_IN_SECONDS = 5
 
 
+class ReadConnectionStateChanged(Enum):
+    INITIATED = 'устанавливаем соединение'
+    ESTABLISHED = 'соединение установлено'
+    CLOSED = 'соединение закрыто'
+
+    def __str__(self):
+        return str(self.value)
+
+
+class SendingConnectionStateChanged(Enum):
+    INITIATED = 'устанавливаем соединение'
+    ESTABLISHED = 'соединение установлено'
+    CLOSED = 'соединение закрыто'
+
+    def __str__(self):
+        return str(self.value)
+
+
+class NicknameReceived:
+    def __init__(self, nickname):
+        self.nickname = nickname
+
+
 async def read_msgs(host, port, messages_queue, saving_queue, status_updates_queue, watchdog_queue,
                     task_status=TASK_STATUS_IGNORED):
     try:
@@ -126,26 +149,3 @@ async def handle_connection(host, port, sender_port, token, messages_queue, send
             await tg.start(watch_for_connection, watchdog_queue)
     except ExceptionGroup as e:
         raise ConnectionError
-
-
-class ReadConnectionStateChanged(Enum):
-    INITIATED = 'устанавливаем соединение'
-    ESTABLISHED = 'соединение установлено'
-    CLOSED = 'соединение закрыто'
-
-    def __str__(self):
-        return str(self.value)
-
-
-class SendingConnectionStateChanged(Enum):
-    INITIATED = 'устанавливаем соединение'
-    ESTABLISHED = 'соединение установлено'
-    CLOSED = 'соединение закрыто'
-
-    def __str__(self):
-        return str(self.value)
-
-
-class NicknameReceived:
-    def __init__(self, nickname):
-        self.nickname = nickname
