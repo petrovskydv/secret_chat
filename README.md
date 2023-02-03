@@ -30,7 +30,7 @@ python listener.py -h
 
 Пример запуска:
 ```shell
-python sender.py --username estuser "текст сообщения"
+python sender.py -username estuser "текст сообщения"
 ```
 
 После регистрации ключ --username можно не указывать.
