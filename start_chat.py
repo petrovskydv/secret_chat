@@ -1,14 +1,11 @@
 import asyncio
 import contextlib
 import logging
-import tkinter as tk
-from tkinter import messagebox
 
 import configargparse
 from anyio import create_task_group
 
 from messenger import gui, chat_client
-
 from messenger.msg_history import read_history, save_messages
 from messenger.storage import read_token_from_file
 
@@ -35,13 +32,13 @@ async def main():
     status_updates_queue = asyncio.Queue()
     saving_queue = asyncio.Queue()
 
+    token_error_event = asyncio.Event()
+    token = None
+
     try:
         token = await read_token_from_file(AUTH_PATH)
     except FileNotFoundError:
-        messagebox.showinfo('Пользователь не зарегистрирован.', 'Нужно пройти регистрацию в чате.')
-        return
-
-    token_error_event = asyncio.Event()
+        token_error_event.set()
 
     async with create_task_group() as tg:
         await tg.start(read_history, args.log_path, messages_queue)
@@ -52,5 +49,5 @@ async def main():
 
 
 if __name__ == '__main__':
-    with contextlib.suppress(tk.TclError, KeyboardInterrupt, gui.TkAppClosed):
+    with contextlib.suppress(KeyboardInterrupt, gui.TkAppClosed):
         asyncio.run(main())
