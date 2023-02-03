@@ -5,7 +5,7 @@ from datetime import datetime
 import aiofiles as aiofiles
 import configargparse
 
-from utils.tools import get_connection
+from messenger.tools import get_connection
 
 
 async def listen_chat(host, port, log_path):

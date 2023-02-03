@@ -6,7 +6,7 @@ from asyncio import Event
 import configargparse
 from anyio import create_task_group, TASK_STATUS_IGNORED
 
-from sender import register
+from messenger.tools import register
 
 
 class TkAppClosed(Exception):
@@ -17,7 +17,7 @@ def process_login(event: Event):
     event.set()
 
 
-async def register_login(host, port, input_field, event: Event, task_status=TASK_STATUS_IGNORED):
+async def register_user(host, port, input_field, event: Event, task_status=TASK_STATUS_IGNORED):
     while True:
         await event.wait()
         username = input_field.get()
@@ -42,27 +42,27 @@ async def draw(host, port):
     root.title('Регистрация в чате Майнкрафтера')
 
     root_frame = tk.Frame()
-    root_frame.pack(fill="both", expand=True)
+    root_frame.pack(fill='both', expand=True)
 
     input_frame = tk.Frame(root_frame)
-    input_frame.pack(side="bottom", fill=tk.X)
+    input_frame.pack(side='bottom', fill=tk.X)
 
     title = tk.Label(input_frame, text='Введите логин')
     title.pack(side='left')
 
     input_field = tk.Entry(input_frame)
-    input_field.pack(side="left", fill=tk.X, expand=True)
+    input_field.pack(side='left', fill=tk.X, expand=True)
 
     is_button_pressed = asyncio.Event()
 
     send_button = tk.Button(input_frame)
-    send_button["text"] = "Зарегистрировать"
-    send_button["command"] = lambda: process_login(is_button_pressed)
-    send_button.pack(side="left")
+    send_button['text'] = 'Зарегистрировать'
+    send_button['command'] = lambda: process_login(is_button_pressed)
+    send_button.pack(side='left')
 
     async with create_task_group() as tg:
         await tg.start(update_tk, root_frame)
-        await tg.start(register_login, host, port, input_field, is_button_pressed)
+        await tg.start(register_user, host, port, input_field, is_button_pressed)
 
 
 if __name__ == '__main__':

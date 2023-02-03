@@ -9,8 +9,7 @@ from tkinter import messagebox
 from anyio import create_task_group, TASK_STATUS_IGNORED, get_cancelled_exc_class, ExceptionGroup
 from async_timeout import timeout
 
-from sender import authorise, submit_message
-from utils.tools import get_connection, read_message, UnknownToken, reconnect
+from messenger.tools import get_connection, read_message, UnknownToken, reconnect, submit_message, authorise
 
 watchdog_logger = logging.getLogger('watchdog')
 TIMEOUT_IN_SECONDS = 5

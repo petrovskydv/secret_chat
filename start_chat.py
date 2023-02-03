@@ -9,7 +9,7 @@ from anyio import create_task_group
 
 from messenger import gui, chat_client
 from messenger.msg_history import read_history, save_messages
-from utils.storage import read_token_from_file
+from messenger.storage import read_token_from_file
 
 AUTH_PATH = 'settings/auth.ini'
 
