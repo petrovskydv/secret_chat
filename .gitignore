@@ -1,4 +1,4 @@
 /.idea/
 /chat.log
-/auth.ini
-/history.txt
+/settings/auth.ini
+/settings/history.txt

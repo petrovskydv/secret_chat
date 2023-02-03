@@ -11,14 +11,14 @@ from messenger import gui, chat_client
 from messenger.msg_history import read_history, save_messages
 from utils.storage import read_token_from_file
 
-AUTH_PATH = 'auth.ini'
+AUTH_PATH = 'settings/auth.ini'
 
 
 async def main():
     logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(name)s:%(message)s')
 
     parser = configargparse.ArgParser(
-        default_config_files=['settings.ini'],
+        default_config_files=['settings/settings.ini'],
         ignore_unknown_config_file_keys=True,
         description='Listener for dvmn chat',
     )
