@@ -9,7 +9,9 @@ from tkinter import messagebox
 from anyio import create_task_group, TASK_STATUS_IGNORED, get_cancelled_exc_class, ExceptionGroup
 from async_timeout import timeout
 
-from messenger.tools import get_connection, read_message, UnknownToken, reconnect, submit_message, authorise
+from messenger.tools import UnknownToken, authorise
+from messenger.connection import get_connection, reconnect
+from messenger.messages import read_message, submit_message
 
 watchdog_logger = logging.getLogger('watchdog')
 TIMEOUT_IN_SECONDS = 5
@@ -123,7 +125,6 @@ async def handle_connection(host, port, sender_port, token, messages_queue, send
             await tg.start(read_msgs, host, port, messages_queue, saving_queue, status_updates_queue, watchdog_queue)
             await tg.start(watch_for_connection, watchdog_queue)
     except ExceptionGroup as e:
-        print('_________________ExceptionGroup')
         raise ConnectionError
 
 

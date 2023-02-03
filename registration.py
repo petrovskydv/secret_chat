@@ -6,11 +6,8 @@ from asyncio import Event
 import configargparse
 from anyio import create_task_group, TASK_STATUS_IGNORED
 
+from messenger.gui import update_tk
 from messenger.tools import register
-
-
-class TkAppClosed(Exception):
-    pass
 
 
 def process_login(event: Event):
@@ -18,22 +15,12 @@ def process_login(event: Event):
 
 
 async def register_user(host, port, input_field, event: Event, task_status=TASK_STATUS_IGNORED):
+    task_status.started()
     while True:
         await event.wait()
         username = input_field.get()
         await register(host, port, username)
         event.clear()
-
-
-async def update_tk(root_frame, interval=1 / 120, task_status=TASK_STATUS_IGNORED):
-    task_status.started()
-    while True:
-        try:
-            root_frame.update()
-        except tk.TclError:
-            # if application has been destroyed/closed
-            raise TkAppClosed()
-        await asyncio.sleep(interval)
 
 
 async def draw(host, port):

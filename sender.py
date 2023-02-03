@@ -4,7 +4,9 @@ import logging
 import configargparse
 
 from messenger.storage import read_token_from_file
-from messenger.tools import read_message, get_connection, UnknownToken, submit_message, authorise, register, AUTH_PATH
+from messenger.tools import UnknownToken, authorise, register, AUTH_PATH
+from messenger.connection import get_connection
+from messenger.messages import read_message, submit_message
 
 logger = logging.getLogger('sender')
 
