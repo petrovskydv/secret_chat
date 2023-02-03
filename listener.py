@@ -21,7 +21,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 
     parser = configargparse.ArgParser(
-        default_config_files=['settings.ini'],
+        default_config_files=['settings/settings.ini'],
         ignore_unknown_config_file_keys=True,
         description='Listener for dvmn chat',
     )

@@ -8,7 +8,7 @@ from utils.storage import save_token_to_file, read_token_from_file
 from utils.tools import send_message, read_message, get_connection, UnknownToken
 
 logger = logging.getLogger('sender')
-AUTH_PATH = 'auth.ini'
+AUTH_PATH = 'settings/auth.ini'
 LINE_FEED = '\n'
 
 
@@ -43,7 +43,13 @@ async def authorise(reader, writer, token):
         logger.error('Неизвестный токен. Проверьте его или зарегистрируйте заново.')
         raise UnknownToken()
 
+    user = json.loads(message)
+    nickname = user['nickname']
+    logger.debug(f'Выполнена авторизация. Пользователь {nickname}')
+
     await read_message(reader)
+
+    return nickname
 
 
 async def register(host, port, username):
@@ -71,7 +77,7 @@ async def register(host, port, username):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(name)s:%(message)s')
 
-    parser = configargparse.ArgParser(default_config_files=['settings.ini'], ignore_unknown_config_file_keys=True)
+    parser = configargparse.ArgParser(default_config_files=['settings/settings.ini'], ignore_unknown_config_file_keys=True)
     parser.add_argument('-c', '--config', is_config_file=True, help='config file path')
     parser.add_argument('--host', required=True, help='chat server url')
     parser.add_argument('--sender_port', required=True, help='chat server port')
