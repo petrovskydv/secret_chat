@@ -8,6 +8,7 @@ import configargparse
 from anyio import create_task_group
 
 from messenger import gui, chat_client
+
 from messenger.msg_history import read_history, save_messages
 from messenger.storage import read_token_from_file
 
@@ -40,14 +41,16 @@ async def main():
         messagebox.showinfo('Пользователь не зарегистрирован.', 'Нужно пройти регистрацию в чате.')
         return
 
+    token_error_event = asyncio.Event()
+
     async with create_task_group() as tg:
         await tg.start(read_history, args.log_path, messages_queue)
-        await tg.start(gui.draw, messages_queue, sending_queue, status_updates_queue)
+        await tg.start(gui.draw, messages_queue, sending_queue, status_updates_queue, token_error_event)
         await tg.start(save_messages, args.log_path, saving_queue)
         await tg.start(chat_client.handle_connection, args.host, args.port, args.sender_port, token, messages_queue,
-                       sending_queue, saving_queue, status_updates_queue)
+                       sending_queue, saving_queue, status_updates_queue, token_error_event)
 
 
 if __name__ == '__main__':
-    with contextlib.suppress(tk.TclError, KeyboardInterrupt):
+    with contextlib.suppress(tk.TclError, KeyboardInterrupt, gui.TkAppClosed):
         asyncio.run(main())

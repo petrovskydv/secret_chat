@@ -1,17 +1,16 @@
 import asyncio
 import logging
 import time
-import tkinter as tk
+from asyncio import Event
 from datetime import datetime
 from enum import Enum
-from tkinter import messagebox
 
 from anyio import create_task_group, TASK_STATUS_IGNORED, get_cancelled_exc_class, ExceptionGroup
 from async_timeout import timeout
 
-from messenger.tools import UnknownToken, authorise
 from messenger.connection import get_connection, reconnect
 from messenger.messages import read_message, submit_message
+from messenger.tools import UnknownToken, authorise
 
 watchdog_logger = logging.getLogger('watchdog')
 TIMEOUT_IN_SECONDS = 5
@@ -65,7 +64,7 @@ async def read_msgs(host, port, messages_queue, saving_queue, status_updates_que
         raise
 
 
-async def send_msgs(host, port, token, sending_queue, status_updates_queue, watchdog_queue,
+async def send_msgs(host, port, token, sending_queue, status_updates_queue, watchdog_queue, token_error_event: Event,
                     task_status=TASK_STATUS_IGNORED):
     try:
         task_status.started()
@@ -81,8 +80,7 @@ async def send_msgs(host, port, token, sending_queue, status_updates_queue, watc
                 await add_watchdog_alive(watchdog_queue, 'Authorization done')
                 status_updates_queue.put_nowait(NicknameReceived(nickname))
             except UnknownToken:
-                messagebox.showinfo("Неверный токен", 'Проверьте токен. сервер его не узнал.')
-                raise tk.TclError
+                token_error_event.set()
 
             async with create_task_group() as tg:
                 await tg.start(send_msg_from_queue, writer, sending_queue, watchdog_queue)
@@ -140,11 +138,12 @@ async def watch_for_connection(watchdog_queue, task_status=TASK_STATUS_IGNORED):
 
 @reconnect(exceptions=(ConnectionError, ExceptionGroup, OSError), logger=watchdog_logger)
 async def handle_connection(host, port, sender_port, token, messages_queue, sending_queue, saving_queue,
-                            status_updates_queue, task_status=TASK_STATUS_IGNORED):
+                            status_updates_queue, token_error_event, task_status=TASK_STATUS_IGNORED):
     watchdog_queue = asyncio.Queue()
     try:
         async with create_task_group() as tg:
-            await tg.start(send_msgs, host, sender_port, token, sending_queue, status_updates_queue, watchdog_queue)
+            await tg.start(send_msgs, host, sender_port, token, sending_queue, status_updates_queue, watchdog_queue,
+                           token_error_event)
             await tg.start(read_msgs, host, port, messages_queue, saving_queue, status_updates_queue, watchdog_queue)
             await tg.start(watch_for_connection, watchdog_queue)
     except ExceptionGroup as e:

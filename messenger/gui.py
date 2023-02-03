@@ -1,5 +1,7 @@
 import asyncio
 import tkinter as tk
+from asyncio import Event
+from tkinter import messagebox
 from tkinter.scrolledtext import ScrolledText
 
 from anyio import create_task_group, TASK_STATUS_IGNORED
@@ -26,6 +28,14 @@ async def update_tk(root_frame, interval=1 / 120, task_status=TASK_STATUS_IGNORE
             # if application has been destroyed/closed
             raise TkAppClosed()
         await asyncio.sleep(interval)
+
+
+async def show_token_error_message(token_error_event: Event, task_status=TASK_STATUS_IGNORED):
+    task_status.started()
+    while True:
+        await token_error_event.wait()
+        messagebox.showinfo("Неверный токен", 'Проверьте токен, сервер его не узнал. Или зарегистрируйтесь заново!')
+        raise TkAppClosed()
 
 
 async def update_conversation_history(panel, messages_queue, task_status=TASK_STATUS_IGNORED):
@@ -83,7 +93,8 @@ def create_status_panel(root_frame):
     return nickname_label, status_read_label, status_write_label
 
 
-async def draw(messages_queue, sending_queue, status_updates_queue, task_status=TASK_STATUS_IGNORED):
+async def draw(messages_queue, sending_queue, status_updates_queue, token_error_event: Event,
+               task_status=TASK_STATUS_IGNORED):
     task_status.started()
     root = tk.Tk()
 
@@ -114,3 +125,4 @@ async def draw(messages_queue, sending_queue, status_updates_queue, task_status=
         await tg.start(update_tk, root_frame)
         await tg.start(update_conversation_history, conversation_panel, messages_queue)
         await tg.start(update_status_panel, status_labels, status_updates_queue)
+        await tg.start(show_token_error_message, token_error_event)
