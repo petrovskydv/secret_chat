@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import logging
 import tkinter as tk
 from asyncio import Event
@@ -6,7 +7,7 @@ from asyncio import Event
 import configargparse
 from anyio import create_task_group, TASK_STATUS_IGNORED
 
-from messenger.gui import update_tk
+from messenger.gui import update_tk, TkAppClosed
 from messenger.auth_tools import register
 
 
@@ -64,4 +65,5 @@ if __name__ == '__main__':
     parser.add_argument('--host', required=True, help='chat server url')
     parser.add_argument('--sender_port', required=True, help='chat server port')
     args = parser.parse_args()
-    asyncio.run(draw(args.host, args.sender_port))
+    with contextlib.suppress(KeyboardInterrupt, TkAppClosed):
+        asyncio.run(draw(args.host, args.sender_port))
